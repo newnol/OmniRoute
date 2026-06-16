@@ -26,30 +26,13 @@ interface Props {
   canEditCutoff: boolean;
 }
 
-function QuotaDetailRow({ q }: { q: any }) {
-  if (q.isCredits) {
-    const colors = getBarColor(q.remainingPercentage ?? 0);
-    const sym = CURRENCY_SYMBOLS[q.currency] ?? q.currency ?? "";
-    const amount = (q.creditCount ?? q.remaining ?? 0).toLocaleString(undefined, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-    return (
-      <div className="flex items-center justify-between gap-2 py-1">
-        <span className="text-[12px] font-medium text-text-main flex items-center gap-1.5">
-          <span className="material-symbols-outlined text-[14px]" style={{ color: colors.text }}>
-            paid
-          </span>
-          {formatQuotaLabel(q.name) || "Credits"}
-        </span>
-        <span className="text-[12px] font-bold tabular-nums" style={{ color: colors.text }}>
-          {sym}
-          {amount}
-        </span>
-      </div>
-    );
-  }
+function formatCurrencyAmount(value: number, currency?: string) {
+  if (!currency || !CURRENCY_SYMBOLS[currency])
+    return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${CURRENCY_SYMBOLS[currency]}${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
+function QuotaDetailRow({ q }: { q: any }) {
   const pctRaw = q.unlimited
     ? 100
     : (q.remainingPercentage ?? calculatePercentage(q.used, q.total));
@@ -59,7 +42,11 @@ function QuotaDetailRow({ q }: { q: any }) {
   const label = q.displayName || formatQuotaLabel(q.name);
   const usedNum = Number(q.used || 0);
   const totalNum = Number(q.total || 0);
-  const showUsage = totalNum > 0 && !q.unlimited;
+  const remainingNum = Number(q.remaining ?? (totalNum > 0 ? totalNum - usedNum : 0));
+  const hasCurrency = !!q.currency;
+  // For "Remaining" quotas with explicit remaining value, show remaining/total instead of used/total.
+  const isRemainingRow = /remaining/i.test(label) && q.remaining !== undefined;
+  const showUsage = totalNum > 0 || (q.unlimited && usedNum > 0) || hasCurrency;
 
   return (
     <div className="flex flex-col gap-1 py-1" title={q.modelKey || q.name}>
@@ -77,7 +64,9 @@ function QuotaDetailRow({ q }: { q: any }) {
         <span>
           {showUsage && (
             <>
-              {usedNum.toLocaleString()} / {totalNum.toLocaleString()}
+              {hasCurrency
+                ? `${formatCurrencyAmount(isRemainingRow ? remainingNum : usedNum, q.currency)} / ${q.unlimited ? "∞" : formatCurrencyAmount(totalNum, q.currency)}`
+                : `${(isRemainingRow ? remainingNum : usedNum).toLocaleString()} / ${q.unlimited ? "∞" : totalNum.toLocaleString()}`}
             </>
           )}
         </span>

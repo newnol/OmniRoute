@@ -188,6 +188,9 @@ function normalizeQuotaEntry(name: string, quota: any = {}, extras: any = {}) {
   const usedRaw = Number(quota?.used || 0);
   const totalRaw = Number(quota?.total || 0);
   const resetAt = quota?.resetAt || null;
+  const unlimited = quota?.unlimited === true;
+  const currency = quota?.currency || extras?.currency || null;
+  const displayName = quota?.displayName || extras?.displayName || null;
 
   // T13: Only consider it stale if the reset time passed AND there's still usage shown.
   // If usage is already 0 (or remaining is 100%), it's naturally reset and doesn't need to be marked as stale.
@@ -199,6 +202,14 @@ function normalizeQuotaEntry(name: string, quota: any = {}, extras: any = {}) {
 
   const used = staleAfterReset ? 0 : usedRaw;
   const total = Number.isFinite(totalRaw) ? totalRaw : 0;
+  const remainingRaw =
+    quota?.remaining !== undefined
+      ? Number(quota.remaining)
+      : extras?.remaining !== undefined
+        ? Number(extras.remaining)
+        : undefined;
+  const remaining =
+    remainingRaw !== undefined && Number.isFinite(remainingRaw) ? remainingRaw : undefined;
 
   const remainingPercentage =
     staleAfterReset && total > 0
@@ -212,8 +223,12 @@ function normalizeQuotaEntry(name: string, quota: any = {}, extras: any = {}) {
     used: Number.isFinite(used) ? used : 0,
     total,
     resetAt,
+    unlimited,
     staleAfterReset,
+    ...(currency ? { currency } : {}),
+    ...(displayName ? { displayName } : {}),
     ...(remainingPercentage !== undefined ? { remainingPercentage } : {}),
+    ...(remaining !== undefined ? { remaining } : {}),
     ...extras,
   };
 }
@@ -382,10 +397,16 @@ export function parseQuotaData(provider, data) {
         break;
 
       default:
-        // Generic fallback for unknown providers
+        // Generic fallback for unknown providers (includes vercel-ai-gateway)
         if (data.quotas) {
           Object.entries(data.quotas).forEach(([name, quota]: [string, any]) => {
-            normalizedQuotas.push(normalizeQuotaEntry(name, quota));
+            normalizedQuotas.push(
+              normalizeQuotaEntry(name, quota, {
+                displayName: quota?.displayName,
+                currency: quota?.currency,
+                remaining: quota?.remaining,
+              })
+            );
           });
         }
     }

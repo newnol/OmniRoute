@@ -25,39 +25,25 @@ interface Props {
 
 const MAX_VISIBLE_DEFAULT = 3;
 
-function QuotaRow({ q }: { q: any }) {
-  if (q.isCredits) {
-    const colors = getBarColor(q.remainingPercentage ?? 0);
-    const sym = CURRENCY_SYMBOLS[q.currency] ?? q.currency ?? "";
-    const amount = (q.creditCount ?? q.remaining ?? 0).toLocaleString(undefined, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-    return (
-      <div className="flex items-center justify-between gap-2 py-0.5">
-        <span className="text-[11px] text-text-main truncate flex items-center gap-1">
-          <span
-            className="material-symbols-outlined text-[12px] shrink-0"
-            style={{ color: colors.text }}
-          >
-            paid
-          </span>
-          {formatQuotaLabel(q.name) || "Credits"}
-        </span>
-        <span className="text-[11px] font-bold tabular-nums" style={{ color: colors.text }}>
-          {sym}
-          {amount}
-        </span>
-      </div>
-    );
-  }
+function formatCurrencyAmount(value: number, currency?: string) {
+  if (!currency || !CURRENCY_SYMBOLS[currency])
+    return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${CURRENCY_SYMBOLS[currency]}${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
+function QuotaRow({ q }: { q: any }) {
   const pctRaw = q.unlimited
     ? 100
     : (q.remainingPercentage ?? calculatePercentage(q.used, q.total));
   const pct = Math.round(pctRaw);
   const colors = getBarColor(pct);
   const label = q.displayName || formatQuotaLabel(q.name);
+  const usedNum = Number(q.used || 0);
+  const totalNum = Number(q.total || 0);
+  const remainingNum = Number(q.remaining ?? (totalNum > 0 ? totalNum - usedNum : 0));
+  const hasCurrency = !!q.currency;
+  const isRemainingRow = /remaining/i.test(label) && q.remaining !== undefined;
+  const showUsage = totalNum > 0 || (q.unlimited && usedNum > 0) || hasCurrency;
 
   return (
     <div className="flex flex-col gap-0.5 py-0.5" title={q.modelKey || q.name}>
@@ -71,6 +57,13 @@ function QuotaRow({ q }: { q: any }) {
         </span>
       </div>
       {!q.unlimited && <QuotaMiniBar percent={pct} />}
+      {showUsage && (
+        <div className="text-[10px] text-text-muted tabular-nums">
+          {hasCurrency
+            ? `${formatCurrencyAmount(isRemainingRow ? remainingNum : usedNum, q.currency)} / ${q.unlimited ? "∞" : formatCurrencyAmount(totalNum, q.currency)}`
+            : `${(isRemainingRow ? remainingNum : usedNum).toLocaleString()} / ${q.unlimited ? "∞" : totalNum.toLocaleString()}`}
+        </div>
+      )}
     </div>
   );
 }

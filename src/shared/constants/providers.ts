@@ -498,7 +498,8 @@ export const WEB_COOKIE_PROVIDERS = {
     textIcon: "LMA",
     website: "https://lmarena.ai",
     hasFree: true,
-    freeNote: "Free model comparison platform — 40+ models (GPT, Claude, Gemini, Llama). No subscription required.",
+    freeNote:
+      "Free model comparison platform — 40+ models (GPT, Claude, Gemini, Llama). No subscription required.",
     authHint:
       "Paste your session cookie from lmarena.ai (DevTools → Application → Cookies). Optional — works with free tier for basic comparisons.",
     riskNoticeVariant: "webCookie",
@@ -3127,6 +3128,7 @@ export const USAGE_SUPPORTED_PROVIDERS = [
   "nanogpt",
   "deepseek",
   "xiaomi-mimo",
+  "vercel-ai-gateway",
 ];
 
 // ── Zod validation at module load (Phase 7.2) ──

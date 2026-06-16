@@ -90,6 +90,10 @@ const NANOGPT_CONFIG = {
   usageUrl: "https://nano-gpt.com/api/subscription/v1/usage",
 };
 
+const VERCEL_AI_GATEWAY_CONFIG = {
+  creditsUrl: "https://ai-gateway.vercel.sh/v1/credits",
+};
+
 const OPENCODE_GO_QUOTA_URL =
   process.env.OMNIROUTE_OPENCODE_GO_QUOTA_URL ?? "https://api.z.ai/api/monitor/usage/quota/limit";
 const OPENCODE_GO_QUOTA_TOTALS = {
@@ -1307,6 +1311,66 @@ async function getNanoGptUsage(apiKey: string) {
 }
 
 /**
+ * Vercel AI Gateway Usage
+ * Fetches account credits from the /v1/credits endpoint.
+ * Returns balance and total_used as USD credit entries.
+ */
+async function getVercelAiGatewayUsage(apiKey: string) {
+  if (!apiKey) {
+    return { message: "Vercel AI Gateway API key not available." };
+  }
+
+  try {
+    const res = await fetch(VERCEL_AI_GATEWAY_CONFIG.creditsUrl, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!res.ok) {
+      if (res.status === 401) return { message: "Invalid or expired Vercel AI Gateway API key." };
+      return { message: `Vercel AI Gateway API error (${res.status})` };
+    }
+
+    const data = toRecord(await res.json());
+    const totalUsed = toNumber(data.total_used, 0);
+    const balance = toNumber(data.balance, 0);
+    const MONTHLY_CAP = 5; // $5 monthly Vercel AI Gateway allowance
+
+    const quotas: Record<string, UsageQuota> = {
+      "Used (USD)": {
+        used: totalUsed,
+        total: 0,
+        remaining: 0,
+        remainingPercentage: undefined,
+        resetAt: null,
+        unlimited: true,
+        currency: "USD",
+        displayName: "Used (USD)",
+      },
+      "Remaining (USD)": {
+        used: 0,
+        total: MONTHLY_CAP,
+        remaining: balance,
+        remainingPercentage: clampPercentage((balance / MONTHLY_CAP) * 100),
+        resetAt: null,
+        unlimited: false,
+        currency: "USD",
+        displayName: "Remaining (USD)",
+      },
+    };
+
+    return {
+      plan: "Vercel AI Gateway",
+      quotas,
+    };
+  } catch (error) {
+    return {
+      message: `Vercel AI Gateway connected. Unable to fetch usage: ${(error as Error).message}`,
+    };
+  }
+}
+
+/**
  * Decode the `sub` claim of a Cursor JWT (the WorkOS user id).
  * Returns null if the token is not a parseable JWT.
  */
@@ -1477,6 +1541,7 @@ export const USAGE_FETCHER_PROVIDERS = [
   "opencode",
   "opencode-zen",
   "xiaomi-mimo",
+  "vercel-ai-gateway",
 ] as const;
 
 export type UsageFetcherProvider = (typeof USAGE_FETCHER_PROVIDERS)[number];
@@ -1548,6 +1613,8 @@ export async function getUsageForProvider(
       return await getOpencodeUsage(id || "", apiKey || "");
     case "xiaomi-mimo":
       return await getXiaomiMimoUsage(id || "");
+    case "vercel-ai-gateway":
+      return await getVercelAiGatewayUsage(apiKey || "");
     default:
       return { message: `Usage API not implemented for ${provider}` };
   }

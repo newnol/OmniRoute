@@ -4,6 +4,53 @@ import assert from "node:assert/strict";
 const usage = await import("../../open-sse/services/usage.ts");
 const { USAGE_SUPPORTED_PROVIDERS } = await import("../../src/shared/constants/providers.ts");
 
+test("USAGE_SUPPORTED_PROVIDERS includes vercel-ai-gateway", () => {
+  assert.ok(
+    (USAGE_SUPPORTED_PROVIDERS as string[]).includes("vercel-ai-gateway"),
+    "vercel-ai-gateway must be in the usage-supported providers allowlist"
+  );
+});
+
+test("getUsageForProvider returns Used (USD) + Remaining (USD) for vercel-ai-gateway", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ balance: "3.25", total_used: "1.75" }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  try {
+    const result = (await usage.getUsageForProvider({
+      id: "vag-1",
+      provider: "vercel-ai-gateway",
+      apiKey: "test-key",
+    })) as {
+      plan?: string;
+      quotas?: Record<
+        string,
+        {
+          used: number;
+          total: number;
+          remaining: number;
+          remainingPercentage: number;
+          unlimited: boolean;
+        }
+      >;
+    };
+    assert.equal(result.plan, "Vercel AI Gateway");
+    // Used (USD): unlimited (total used, no cap)
+    assert.ok(result.quotas?.["Used (USD)"], "Used (USD) quota must be present");
+    assert.equal(result.quotas!["Used (USD)"].used, 1.75);
+    assert.equal(result.quotas!["Used (USD)"].unlimited, true);
+    // Remaining (USD): remaining out of $5 with percentage
+    assert.ok(result.quotas?.["Remaining (USD)"], "Remaining (USD) quota must be present");
+    assert.equal(result.quotas!["Remaining (USD)"].remaining, 3.25);
+    assert.equal(result.quotas!["Remaining (USD)"].total, 5);
+    assert.equal(result.quotas!["Remaining (USD)"].used, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("USAGE_SUPPORTED_PROVIDERS includes crof", () => {
   assert.ok(
     (USAGE_SUPPORTED_PROVIDERS as string[]).includes("crof"),

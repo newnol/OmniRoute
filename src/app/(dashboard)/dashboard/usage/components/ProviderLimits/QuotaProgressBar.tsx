@@ -3,6 +3,16 @@
 import { cn } from "@/shared/utils/cn";
 import { formatResetTime } from "./utils";
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  USD: "$",
+  CNY: "¥",
+  EUR: "€",
+  GBP: "£",
+  JPY: "¥",
+  KRW: "₩",
+  INR: "₹",
+};
+
 // Calculate color based on remaining percentage
 const getColorClasses = (remainingPercentage) => {
   if (remainingPercentage > 70) {
@@ -64,12 +74,19 @@ const formatResetTimeDisplay = (resetTime) => {
   }
 };
 
+function formatCurrencyAmount(value: number, currency?: string) {
+  if (!currency || !CURRENCY_SYMBOLS[currency])
+    return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${CURRENCY_SYMBOLS[currency]}${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 export default function QuotaProgressBar({
   percentage = 0,
   label = "",
   used = 0,
   total = 0,
   unlimited = false,
+  currency = null,
   resetTime = null,
   staleAfterReset = false,
 }) {
@@ -79,6 +96,7 @@ export default function QuotaProgressBar({
 
   // percentage is already remaining percentage (from ProviderLimitCard)
   const remaining = percentage;
+  const remainingAmount = Number(remaining ?? (total > 0 ? total - used : 0));
 
   return (
     <div className="space-y-2">
@@ -87,7 +105,9 @@ export default function QuotaProgressBar({
         <span className="font-semibold text-text-primary">{label}</span>
         <div className="flex items-center gap-1.5">
           <span className="text-xs">{colors.emoji}</span>
-          <span className={cn("font-medium", colors.text)}>{remaining}%</span>
+          <span className={cn("font-medium", colors.text)}>
+            {unlimited ? "∞" : `${remaining}%`}
+          </span>
         </div>
       </div>
 
@@ -104,7 +124,13 @@ export default function QuotaProgressBar({
       {/* Usage details and countdown */}
       <div className="flex items-center justify-between text-xs text-text-muted">
         <span>
-          {used.toLocaleString()} / {total.toLocaleString()} requests
+          {unlimited
+            ? used > 0
+              ? `${currency ? formatCurrencyAmount(used, currency) : used.toLocaleString()} / ∞`
+              : "∞"
+            : currency
+              ? `${formatCurrencyAmount(remainingAmount, currency)} / ${formatCurrencyAmount(total, currency)}`
+              : `${remainingAmount.toLocaleString()} / ${total.toLocaleString()} requests`}
         </span>
         {staleAfterReset ? (
           <div className="flex items-center gap-1">
