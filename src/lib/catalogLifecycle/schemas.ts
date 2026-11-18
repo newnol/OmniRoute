@@ -13,7 +13,8 @@ export const providerLifecycleIdSchema = z
   .string()
   .min(1)
   .max(128)
-  .regex(/^[^\s/\x00-\x1f\x7f]+$/, "Invalid provider identifier");
+  .regex(/^[^\s/\x00-\x1f\x7f]+$/, "Invalid provider identifier")
+  .refine((value) => value !== "." && value !== "..", "Invalid provider identifier");
 
 export const modelLifecycleIdSchema = z
   .string()
