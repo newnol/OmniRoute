@@ -35,7 +35,7 @@ test("unknown keys and invalid booleans fail closed", () => {
 });
 
 test("provider ID disallows path traversal, slashes and control chars", () => {
-  for (const id of ["", "bad/name", "bad\nname", " space"]) {
+  for (const id of ["", "bad/name", "bad\nname", " space", ".."]) {
     assert.equal(providerLifecycleIdSchema.safeParse(id).success, false);
   }
   assert.equal(providerLifecycleIdSchema.safeParse("node:custom-1").success, true);
