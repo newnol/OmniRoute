@@ -159,6 +159,11 @@ const CRITICAL_DB_TABLES: CriticalTableSpec[] = [
   { table: "webhooks", maxRows: 5_000 },
   // Key Templates: editable, secret-free key policy snapshots (operator configuration).
   { table: "key_templates", maxRows: 5_000 },
+  // Fork M1 operator intent must survive automatic DB repair/reconstruction:
+  // dropping durable disables could otherwise make a blocked provider routable.
+  { table: "provider_lifecycle_policies", maxRows: 10_000 },
+  { table: "model_lifecycle_overrides", maxRows: 100_000 },
+  { table: "catalog_lifecycle_revision", maxRows: 1 },
 ];
 
 /**
